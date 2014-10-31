@@ -734,7 +734,17 @@ public abstract class NanoHTTPD {
             this.chunkedTransfer = chunkedTransfer;
         }
 
-        public interface IStatus {
+		public void destroy() {
+			if (data != null) {
+				try {
+					data.close();
+				} catch (IOException e) {
+					//e.printStackTrace();
+				}
+			}
+		}
+
+		public interface IStatus {
             int getRequestStatus();
             String getDescription();
         }
@@ -859,6 +869,7 @@ public abstract class NanoHTTPD {
 
         @Override
         public void execute() throws IOException {
+			Response res = null;
             try {
                 // Read the first 8192 bytes.
                 // The full header should fit in here.
@@ -917,13 +928,13 @@ public abstract class NanoHTTPD {
                 cookies = new CookieHandler(headers);
 
                 // Ok, now do the serve()
-                Response r = serve(this);
-                if (r == null) {
+				res = serve(this);
+				if (res == null) {
                     throw new ResponseException(Response.Status.INTERNAL_ERROR, "SERVER INTERNAL ERROR: Serve() returned a null response.");
                 } else {
-                    cookies.unloadQueue(r);
-                    r.setRequestMethod(method);
-                    r.send(outputStream);
+                    cookies.unloadQueue(res);
+                    res.setRequestMethod(method);
+                    res.send(outputStream);
                 }
             } catch (SocketException e) {
                 // throw it out to close socket object (finalAccept)
@@ -940,6 +951,9 @@ public abstract class NanoHTTPD {
                 safeClose(outputStream);
             } finally {
                 tempFileManager.clear();
+				if (res != null) {
+					res.destroy();
+				}
             }
         }
 
